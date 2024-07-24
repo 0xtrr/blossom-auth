@@ -29,3 +29,9 @@ Generate a new upload authorization event
 blossom-auth -a upload -d "8uv27z.jpg" -f "{PATH_TO_FILE}"
 ```
 
+## Contributing
+
+All contributions are welcome! If you have a good idea for the CLI please either make a PR or reach out in the 
+issues section.
+
+Ensure that you run `cargo fmt` and `cargo clippy` before creating the PR.
