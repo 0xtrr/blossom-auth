@@ -26,7 +26,7 @@ blossom-auth -h
 
 Generate a new upload authorization event
 ```
-blossom-auth -a upload -d "8uv27z.jpg" -f "{PATH_TO_FILE}"
+blossom-auth -a upload -d "{FILE_NAME}" -f "{PATH_TO_FILE}"
 ```
 
 ## Contributing
