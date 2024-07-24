@@ -1,7 +1,8 @@
 # Blossom-auth
 
-Blossom-auth is a CLI program for testing and debugging Blossom server instances.
-
+Blossom-auth is a CLI program to easily generate nostr authorization events for testing/debugging blossom servers.
+It lets you generate events for uploading and deleting blobs. It also has some options for faking file hashes and using
+invalid kinds in the authorization event.
 
 ## Install from crates.io
 ```
@@ -27,3 +28,4 @@ Generate a new upload authorization event
 ```
 blossom-auth -a upload -d "8uv27z.jpg" -f "{PATH_TO_FILE}"
 ```
+
