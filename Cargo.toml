@@ -1,6 +1,6 @@
 [package]
 name = "blossom-auth"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "A CLI tool to generate Blossom authorization events"
 authors = ["0xtr <oxtrr@protonmail.com>"]
