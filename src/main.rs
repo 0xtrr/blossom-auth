@@ -1,19 +1,17 @@
 use std::fs::File;
 use std::io;
 use std::io::Read;
-use std::ops::Add;
 use std::path::Path;
 use std::str::FromStr;
-use std::time::SystemTime;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use nostr_sdk::base64::engine::general_purpose;
 use nostr_sdk::base64::Engine;
-use nostr_sdk::{
-    JsonUtil, Keys, Kind, SecretKey, SingleLetterTag, Tag, TagKind, Timestamp, ToBech32,
-};
+use nostr_sdk::{Event, JsonUtil, Keys, SecretKey, ToBech32};
 use rand::Rng;
 use sha2::{Digest, Sha256};
+
+mod sub_commands;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -21,27 +19,28 @@ struct Cli {
     /// Nostr private key (hex)
     #[arg(short, long)]
     private_key: Option<String>,
-    /// Blossom action (get, upload, list or delete)
-    #[arg(short, long)]
-    action: String,
-    /// Description (put into content field in event)
-    #[arg(short, long)]
-    description: String,
-    /// Path to file that is to be uploaded
-    #[arg(short, long)]
-    file_path: String,
-    /// Puts a random generated sha256 hash in the x tag of the event
-    #[arg(long, default_value = "false")]
-    fake_file_hash: bool,
-    /// Sets incorrect kind in the authorization event
-    #[arg(long, default_value = "false")]
-    invalid_kind: bool,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Generate upload auth event
+    Upload(sub_commands::upload::UploadArgs),
+    /// Generate list auth event
+    List(sub_commands::list::ListArgs),
+    /// Generate get auth event
+    Get(sub_commands::get::GetArgs),
+    /// Generate delete auth event
+    Delete(sub_commands::delete::DeleteArgs),
+    /// Generate mirror auth event
+    Mirror(sub_commands::mirror::MirrorArgs),
 }
 
 fn main() {
-    let args = Cli::parse();
+    let cli = Cli::parse();
 
-    let keys: Keys = match args.private_key.clone() {
+    let keys: Keys = match cli.private_key.clone() {
         None => generate_new_keys(),
         Some(private_key) => parse_private_key(private_key),
     };
@@ -52,48 +51,24 @@ fn main() {
     println!("{}", keys.public_key().to_bech32().unwrap());
     println!("{}", keys.public_key());
 
-    // Read file
-    let path = Path::new(&args.file_path);
-    let file = File::open(path).unwrap();
-
-    // Get filename and filesize
-    let metadata = file.metadata().unwrap();
-    let filesize = metadata.len(); // size of the file in bytes
-    println!("{}", filesize);
-
-    // Build tags
-    let t_tag = Tag::hashtag(args.action.clone());
-
-    let size_tag = Tag::custom(TagKind::Size, vec![filesize.to_string()]);
-
-    let filehash: String = if args.fake_file_hash {
-        get_random_sha256_hash()
-    } else {
-        compute_sha256_hash(path).unwrap()
-    };
-    let file_hash_tag = Tag::custom(
-        TagKind::SingleLetter(SingleLetterTag::from_char('x').unwrap()),
-        vec![filehash],
-    );
-
-    let timestamp = SystemTime::now()
-        .add(core::time::Duration::new(3600, 0))
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let expiration_tag = Tag::expiration(Timestamp::from(timestamp));
-
-    let tags: Vec<Tag> = vec![t_tag, size_tag, expiration_tag, file_hash_tag];
-
-    let kind = if args.invalid_kind {
-        Kind::Custom(20202)
-    } else {
-        Kind::Custom(24242)
+    let event: Event = match cli.command {
+        Commands::Upload(sub_command_args) => {
+            sub_commands::upload::generate_upload_event(&keys, sub_command_args)
+        }
+        Commands::List(sub_command_args) => {
+            sub_commands::list::generate_list_event(&keys, sub_command_args)
+        }
+        Commands::Get(sub_command_args) => {
+            sub_commands::get::generate_get_event(&keys, sub_command_args)
+        }
+        Commands::Delete(sub_command_args) => {
+            sub_commands::delete::generate_delete_event(&keys, sub_command_args)
+        }
+        Commands::Mirror(sub_command_args) => {
+            sub_commands::mirror::generate_mirror_event(&keys, sub_command_args)
+        }
     };
 
-    let event = nostr_sdk::EventBuilder::new(kind, args.description.clone(), tags)
-        .to_event(&keys)
-        .unwrap();
     let event_json = event.as_json();
     println!();
     println!("=== Event JSON: ===");
@@ -118,8 +93,10 @@ fn generate_new_keys() -> Keys {
     Keys::generate()
 }
 
-fn compute_sha256_hash<P: AsRef<Path>>(path: P) -> io::Result<String> {
-    let mut file = File::open(path)?;
+fn compute_sha256_hash(path: &Path) -> io::Result<String> {
+    let mut file = File::open(path).unwrap_or_else(|e| {
+        panic!("Failed to open file {}: {}", path.display(), e);
+    });
     let mut hasher = Sha256::new();
     let mut buffer = [0; 1024];
 
