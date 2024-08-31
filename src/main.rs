@@ -7,8 +7,9 @@ use std::str::FromStr;
 use clap::{Parser, Subcommand};
 use nostr_sdk::base64::engine::general_purpose;
 use nostr_sdk::base64::Engine;
-use nostr_sdk::{Event, JsonUtil, Keys, SecretKey, ToBech32};
+use nostr_sdk::{serde_json, Event, JsonUtil, Keys, SecretKey, Tag, ToBech32};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod sub_commands;
@@ -19,6 +20,9 @@ struct Cli {
     /// Nostr private key (hex)
     #[arg(short, long)]
     private_key: Option<String>,
+    /// Provides a fake signature to test signature verification
+    #[arg(short, long, default_value = "false")]
+    fake_sig: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -69,7 +73,14 @@ fn main() {
         }
     };
 
-    let event_json = event.as_json();
+    let event_json = if cli.fake_sig {
+        let mut custom_event = CustomEvent::from(event);
+        custom_event = CustomEvent::fake_event_signature(custom_event);
+        custom_event.as_json().to_string()
+    } else {
+        event.as_json().to_string()
+    };
+
     println!();
     println!("=== Event JSON: ===");
     println!("{:?}", event_json.clone());
@@ -125,4 +136,51 @@ fn get_random_sha256_hash() -> String {
 
     // Convert the hash result to a hexadecimal string
     hex::encode(result)
+}
+
+/// Custom event type used for faking signature
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomEvent {
+    /// EventId
+    pub id: String,
+    /// Author
+    pub pubkey: String,
+    /// Timestamp (seconds)
+    pub created_at: u64,
+    /// Kind
+    pub kind: u64,
+    /// Vector of [`Tag`]
+    pub tags: Vec<Tag>,
+    /// Content
+    pub content: String,
+    /// Signature
+    pub sig: String,
+}
+
+impl From<Event> for CustomEvent {
+    fn from(event: Event) -> Self {
+        CustomEvent {
+            id: event.id.to_hex(),
+            pubkey: event.pubkey.to_hex(),
+            kind: event.kind.as_u64(),
+            content: event.content.clone(),
+            created_at: event.created_at.as_u64(),
+            tags: event.tags.clone(),
+            sig: event.sig.to_string(),
+        }
+    }
+}
+
+impl CustomEvent {
+    fn as_json(&self) -> String {
+        serde_json::to_string(self).unwrap()
+    }
+
+    /// Sets a static invalid signature
+    pub fn fake_event_signature(event: Self) -> Self {
+        CustomEvent {
+            sig: String::from("16a9b833a060b06cf45578be129e5cd2d1b2c5f0ff3c28e97152c755832c24b3a5099ac8450ffaec2e7c337af41b4f49def5d0024c2630413b5992b41f6c5bf6"),
+            ..event
+        }
+    }
 }

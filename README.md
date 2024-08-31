@@ -4,6 +4,12 @@ Blossom-auth is a CLI program to easily generate nostr authorization events for 
 It lets you generate events for uploading and deleting blobs. It also has some options for faking file hashes and using
 invalid kinds in the authorization event.
 
+### Features
+- Generate valid events for all types of actions
+- Generate invalid event with fake event signature
+- Generate invalid event with invalid kind
+- Generate invalid event with fake file hash in x-tag
+
 ## Install from crates.io
 ```
 cargo install blossom-auth

@@ -306,6 +306,7 @@ dependencies = [
  "hex",
  "nostr-sdk",
  "rand",
+ "serde",
  "sha2",
 ]
 

@@ -2,10 +2,9 @@ use std::ops::Add;
 use std::path::Path;
 use std::time::SystemTime;
 
+use crate::{compute_sha256_hash, get_random_sha256_hash};
 use clap::Args;
 use nostr_sdk::{Event, EventBuilder, Keys, Kind, SingleLetterTag, Tag, TagKind, Timestamp};
-
-use crate::{compute_sha256_hash, get_random_sha256_hash};
 
 #[derive(Args)]
 pub struct UploadArgs {
